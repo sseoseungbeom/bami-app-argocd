@@ -1,0 +1,102 @@
+---
+# Source: app-argo/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-app-argo
+  labels:
+    helm.sh/chart: app-argo-0.1.0
+    app.kubernetes.io/name: app-argo
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+automountServiceAccountToken: true
+---
+# Source: app-argo/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: argocd-app-argo
+  labels:
+    helm.sh/chart: app-argo-0.1.0
+    app.kubernetes.io/name: app-argo
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: app-argo
+    app.kubernetes.io/instance: argocd
+---
+# Source: app-argo/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-app-argo
+  labels:
+    helm.sh/chart: app-argo-0.1.0
+    app.kubernetes.io/name: app-argo
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: app-argo
+      app.kubernetes.io/instance: argocd
+  template:
+    metadata:
+      labels:
+        helm.sh/chart: app-argo-0.1.0
+        app.kubernetes.io/name: app-argo
+        app.kubernetes.io/instance: argocd
+        app.kubernetes.io/version: "1.16.0"
+        app.kubernetes.io/managed-by: Helm
+    spec:
+      imagePullSecrets:
+        - name: harbor-cred
+      serviceAccountName: argocd-app-argo
+      containers:
+        - name: app-argo
+          image: "harbor.bamiland.shop/bami-ci-test/acorn:v2.6.0"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+---
+# Source: app-argo/templates/tests/test-connection.yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "argocd-app-argo-test-connection"
+  labels:
+    helm.sh/chart: app-argo-0.1.0
+    app.kubernetes.io/name: app-argo
+    app.kubernetes.io/instance: argocd
+    app.kubernetes.io/version: "1.16.0"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test
+spec:
+  containers:
+    - name: wget
+      image: busybox
+      command: ['wget']
+      args: ['argocd-app-argo:80']
+  restartPolicy: Never
